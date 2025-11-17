@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SwapBridge Widget</title>
     
+    <!-- Permissions Policy for wallet connections -->
+    <meta http-equiv="Permissions-Policy" content="clipboard-write=*, web-share=*">
+    
     <!-- Widget CSS -->
     <link rel="stylesheet" href="https://autotestguru.github.io/SwapWidget/swap-bridge-widget.css">
     
@@ -63,6 +66,41 @@
             text-align: center;
         }
         
+        .wallet-notice {
+            padding: 20px;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            background-color: #fffbeb;
+            color: #92400e;
+            margin: 20px;
+            text-align: center;
+        }
+        
+        .retry-button, .open-direct-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 6px;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .open-direct-button {
+            background: #10b981;
+        }
+        
+        .retry-button:hover {
+            background: #2563eb;
+        }
+        
+        .open-direct-button:hover {
+            background: #059669;
+        }
+        
         .retry-button {
             background: #3b82f6;
             color: white;
@@ -117,6 +155,45 @@
         function initializeWidget() {
             const container = document.getElementById('swap-widget-container');
             
+            // Check wallet availability and iframe context
+            function checkWalletAvailability() {
+                console.log('🔍 Checking wallet availability in iframe...');
+                console.log('Window context:', {
+                    isInIframe: window !== window.top,
+                    origin: window.location.origin,
+                    ethereum: !!window.ethereum,
+                    metamask: !!(window.ethereum && window.ethereum.isMetaMask),
+                    userAgent: navigator.userAgent.includes('MetaMask')
+                });
+                
+                if (window.ethereum) {
+                    console.log('✅ Ethereum provider detected');
+                    if (window.ethereum.isMetaMask) {
+                        console.log('✅ MetaMask detected');
+                    }
+                } else {
+                    console.warn('❌ No Ethereum provider detected in iframe');
+                }
+            }
+            
+            function showWalletNotice() {
+                container.innerHTML = `
+                    <div class="wallet-notice">
+                        <h3>🦊 Wallet Connection Notice</h3>
+                        <p>MetaMask and other wallets may not work properly in iframe mode due to security restrictions.</p>
+                        <p>For the best experience with wallet connections:</p>
+                        <a href="https://autotestguru.github.io/SwapWidget/" 
+                           target="_blank" 
+                           class="open-direct-button">
+                            Open Widget in New Tab
+                        </a>
+                        <button class="retry-button" onclick="location.reload()">
+                            Try Again in Iframe
+                        </button>
+                    </div>
+                `;
+            }
+            
             function showError(message) {
                 container.innerHTML = `
                     <div class="error-container">
@@ -134,6 +211,9 @@
                 
                 if (typeof window.initSwapBridgeWidget === 'function') {
                     try {
+                        // Check wallet availability before initializing
+                        checkWalletAvailability();
+                        
                         // Clear loading state
                         container.innerHTML = '';
                         
@@ -143,6 +223,23 @@
                         });
                         
                         console.log('✅ SwapBridge Widget initialized successfully in iframe');
+                        
+                        // Monitor for wallet connection attempts in iframe
+                        if (isInIframe) {
+                            setTimeout(() => {
+                                document.addEventListener('click', function(e) {
+                                    if (e.target.textContent.toLowerCase().includes('metamask') || 
+                                        e.target.textContent.toLowerCase().includes('connect wallet')) {
+                                        console.log('🦊 Wallet connection attempted in iframe');
+                                        setTimeout(() => {
+                                            if (!window.ethereum || !window.ethereum.selectedAddress) {
+                                                showWalletNotice();
+                                            }
+                                        }, 2000);
+                                    }
+                                });
+                            }, 1000);
+                        }
                         
                         // Post message to parent about successful load
                         if (window.parent !== window) {

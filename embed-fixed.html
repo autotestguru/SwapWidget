@@ -101,21 +101,6 @@
             background: #059669;
         }
         
-        .retry-button {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 12px;
-            font-size: 14px;
-        }
-        
-        .retry-button:hover {
-            background: #2563eb;
-        }
-        
         /* Make widget responsive */
         @media (max-width: 480px) {
             #swap-widget-container {
@@ -151,15 +136,19 @@
         const config = getUrlParams();
         document.body.style.background = config.theme === 'dark' ? '#1f2937' : 'transparent';
         
+        // Check if we're in an iframe and if wallet connections work
+        const isInIframe = window !== window.top;
+        let walletCheckFailed = false;
+        
         // Initialize widget with retry logic
         function initializeWidget() {
             const container = document.getElementById('swap-widget-container');
             
             // Check wallet availability and iframe context
             function checkWalletAvailability() {
-                console.log('🔍 Checking wallet availability in iframe...');
-                console.log('Window context:', {
-                    isInIframe: window !== window.top,
+                console.log('🔍 Checking wallet availability...');
+                console.log('Context:', {
+                    isInIframe,
                     origin: window.location.origin,
                     ethereum: !!window.ethereum,
                     metamask: !!(window.ethereum && window.ethereum.isMetaMask),
@@ -171,8 +160,10 @@
                     if (window.ethereum.isMetaMask) {
                         console.log('✅ MetaMask detected');
                     }
+                    return true;
                 } else {
-                    console.warn('❌ No Ethereum provider detected in iframe');
+                    console.warn('❌ No Ethereum provider detected');
+                    return false;
                 }
             }
             
@@ -211,8 +202,8 @@
                 
                 if (typeof window.initSwapBridgeWidget === 'function') {
                     try {
-                        // Check wallet availability before initializing
-                        checkWalletAvailability();
+                        // Check wallet availability
+                        const walletAvailable = checkWalletAvailability();
                         
                         // Clear loading state
                         container.innerHTML = '';
@@ -222,9 +213,20 @@
                             theme: config.theme
                         });
                         
-                        console.log('✅ SwapBridge Widget initialized successfully in iframe');
+                        console.log('✅ SwapBridge Widget initialized successfully');
                         
-                        // Monitor for wallet connection attempts in iframe
+                        // If in iframe and no wallet, show notice after 3 seconds
+                        if (isInIframe && !walletAvailable) {
+                            setTimeout(() => {
+                                const connectButtons = container.querySelectorAll('[data-testid*="connect"], button:contains("Connect"), button:contains("MetaMask")');
+                                if (connectButtons.length > 0) {
+                                    console.log('⚠️ Wallet connect buttons detected in iframe - may not work properly');
+                                    walletCheckFailed = true;
+                                }
+                            }, 3000);
+                        }
+                        
+                        // Monitor for wallet connection attempts
                         if (isInIframe) {
                             setTimeout(() => {
                                 document.addEventListener('click', function(e) {
@@ -245,7 +247,8 @@
                         if (window.parent !== window) {
                             window.parent.postMessage({
                                 type: 'SWAP_WIDGET_LOADED',
-                                success: true
+                                success: true,
+                                walletAvailable: walletAvailable
                             }, '*');
                         }
                         
@@ -331,7 +334,8 @@
         window.addEventListener('load', function() {
             if (window.parent !== window) {
                 window.parent.postMessage({
-                    type: 'IFRAME_READY'
+                    type: 'IFRAME_READY',
+                    isInIframe: isInIframe
                 }, '*');
             }
         });
