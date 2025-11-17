@@ -7,6 +7,20 @@ import "./index.css"; // Import Tailwind CSS
 function initSwapBridgeWidget(containerOrId, props = {}) {
   let container;
   
+  // Check if React and ReactDOM are available
+  if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+    const errorMsg = 'React and ReactDOM must be loaded before initializing the widget. Please include React and ReactDOM scripts.';
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  // Check React version compatibility (support both 18 and 19)
+  const reactVersion = React.version;
+  console.log('React version detected:', reactVersion);
+  if (reactVersion && !reactVersion.match(/^(18|19)\./)) {
+    console.warn('Widget is tested with React 18/19, detected version:', reactVersion);
+  }
+  
   // Handle both DOM node and string ID
   if (typeof containerOrId === 'string') {
     container = document.getElementById(containerOrId);
@@ -21,8 +35,23 @@ function initSwapBridgeWidget(containerOrId, props = {}) {
   
   // Wait for DOM to be ready if needed
   const mountWidget = () => {
-    createRoot(container).render(<WidgetContainer {...props} />);
-    console.log('SwapBridge Widget initialized successfully');
+    try {
+      // For React 19 compatibility, we need to handle the root creation more carefully
+      let root;
+      try {
+        root = createRoot(container);
+      } catch (error) {
+        console.error('Failed to create React root:', error);
+        throw new Error('Failed to create React root. Make sure container is a valid DOM element.');
+      }
+      
+      // Render the widget with error boundary
+      root.render(React.createElement(WidgetContainer, props));
+      console.log('SwapBridge Widget initialized successfully');
+    } catch (error) {
+      console.error('Failed to mount widget:', error);
+      throw error;
+    }
   };
 
   if (document.readyState === 'loading') {

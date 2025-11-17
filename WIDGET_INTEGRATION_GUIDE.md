@@ -12,84 +12,331 @@
 ### **Method 1: React Component (Recommended)**
 
 ```jsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
-const SwapWidget = () => {
+const SwapWidget = ({
+  theme = "light",
+  onLoad = () => {},
+  onError = () => {},
+  retryAttempts = 5,
+  retryDelay = 1000,
+}) => {
   const containerRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadAttempts, setLoadAttempts] = useState(0);
+
+  const loadWidget = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Load CSS first
+      const cssId = "swap-widget-css";
+      if (!document.getElementById(cssId)) {
+        const link = document.createElement("link");
+        link.id = cssId;
+        link.rel = "stylesheet";
+        link.href =
+          "https://autotestguru.github.io/SwapWidget/swap-bridge-widget.css";
+        document.head.appendChild(link);
+      }
+
+      // Load JavaScript if not already loaded
+      if (!window.initSwapBridgeWidget) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src =
+            "https://autotestguru.github.io/SwapWidget/swap-bridge-widget.js";
+          script.onload = resolve;
+          script.onerror = () =>
+            reject(new Error("Failed to load widget script"));
+          document.head.appendChild(script);
+        });
+      }
+
+      // Retry mechanism for function availability
+      const checkAndInit = async (attempts = 0) => {
+        if (window.initSwapBridgeWidget) {
+          if (containerRef.current) {
+            // Initialize widget with configuration
+            window.initSwapBridgeWidget(containerRef.current, { theme });
+            setIsLoading(false);
+            onLoad();
+            console.log("SwapWidget loaded successfully");
+          } else {
+            throw new Error("Container ref not available");
+          }
+        } else if (attempts < retryAttempts) {
+          console.log(
+            `Widget function not ready, retrying... (${
+              attempts + 1
+            }/${retryAttempts})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          return checkAndInit(attempts + 1);
+        } else {
+          throw new Error(
+            `Widget function not available after ${retryAttempts} attempts`
+          );
+        }
+      };
+
+      await checkAndInit();
+    } catch (err) {
+      console.error("Widget loading error:", err);
+      setError(err.message);
+      setIsLoading(false);
+      onError(err);
+
+      // Auto-retry on failure
+      if (loadAttempts < retryAttempts) {
+        setTimeout(() => {
+          setLoadAttempts((prev) => prev + 1);
+          loadWidget();
+        }, retryDelay);
+      }
+    }
+  }, [theme, onLoad, onError, retryAttempts, retryDelay, loadAttempts]);
 
   useEffect(() => {
-    const loadWidget = async () => {
-      try {
-        // Load CSS first
-        const cssId = "swap-widget-css";
-        if (!document.getElementById(cssId)) {
-          const link = document.createElement("link");
-          link.id = cssId;
-          link.rel = "stylesheet";
-          link.href =
-            "https://autotestguru.github.io/SwapWidget/swap-bridge-widget.css";
-          document.head.appendChild(link);
-        }
+    loadWidget();
+  }, [loadWidget]);
 
-        // Load JavaScript
-        if (!window.initSwapBridgeWidget) {
-          await new Promise((resolve, reject) => {
-            const script = document.createElement("script");
-            script.src =
-              "https://autotestguru.github.io/SwapWidget/swap-bridge-widget.js";
-            script.onload = resolve;
-            script.onerror = () => reject(new Error("Failed to load widget"));
-            document.head.appendChild(script);
-          });
-        }
-
-        // Wait a moment for the function to be available
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // Initialize widget
-        if (containerRef.current && window.initSwapBridgeWidget) {
-          window.initSwapBridgeWidget(containerRef.current);
-          setIsLoading(false);
-        } else {
-          throw new Error("Widget initialization function not found");
-        }
-      } catch (err) {
-        console.error("Widget loading error:", err);
-        setError(err.message);
-        setIsLoading(false);
+  // Cleanup function
+  useEffect(() => {
+    return () => {
+      // Clean up if needed when component unmounts
+      if (containerRef.current) {
+        containerRef.current.innerHTML = "";
       }
     };
-
-    loadWidget();
   }, []);
 
-  if (error) {
+  if (error && loadAttempts >= retryAttempts) {
     return (
       <div
         style={{
           padding: "20px",
-          border: "1px solid red",
+          border: "1px solid #ef4444",
           borderRadius: "8px",
+          backgroundColor: "#fef2f2",
+          color: "#dc2626",
         }}
       >
-        <h3>Widget Load Error</h3>
+        <h3>⚠️ Widget Load Error</h3>
         <p>{error}</p>
-        <p>Please check console for more details.</p>
+        <p>
+          Attempted {loadAttempts} times. Please check your internet connection.
+        </p>
+        <button
+          onClick={() => {
+            setLoadAttempts(0);
+            loadWidget();
+          }}
+          style={{
+            marginTop: "10px",
+            padding: "8px 16px",
+            backgroundColor: "#dc2626",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
   if (isLoading) {
-    return <div>Loading swap widget...</div>;
+    return (
+      <div
+        style={{
+          padding: "20px",
+          border: "1px solid #e5e7eb",
+          borderRadius: "8px",
+          backgroundColor: "#f9fafb",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ marginBottom: "10px" }}>🔄 Loading Swap Widget...</div>
+        {loadAttempts > 0 && (
+          <div style={{ fontSize: "0.9em", color: "#6b7280" }}>
+            Attempt {loadAttempts + 1} of {retryAttempts + 1}
+          </div>
+        )}
+      </div>
+    );
   }
 
-  return <div ref={containerRef} />;
+  return (
+    <div ref={containerRef} style={{ width: "100%", minHeight: "400px" }} />
+  );
+};
+
+// Usage Example:
+const App = () => {
+  const handleWidgetLoad = () => {
+    console.log("Widget loaded successfully!");
+  };
+
+  const handleWidgetError = (error) => {
+    console.error("Widget failed to load:", error);
+    // You could send this to your analytics/error tracking service
+  };
+
+  return (
+    <div>
+      <h1>My DeFi App</h1>
+      <SwapWidget
+        theme="light"
+        onLoad={handleWidgetLoad}
+        onError={handleWidgetError}
+        retryAttempts={3}
+        retryDelay={2000}
+      />
+    </div>
+  );
 };
 
 export default SwapWidget;
 ```
+
+### **Method 1B: React Hook (Advanced)**
+
+For more control, you can create a custom hook:
+
+```jsx
+import { useEffect, useRef, useState, useCallback } from "react";
+
+const useSwapWidget = (options = {}) => {
+  const {
+    theme = "light",
+    autoInit = true,
+    retryAttempts = 5,
+    retryDelay = 1000,
+    onLoad = () => {},
+    onError = () => {},
+  } = options;
+
+  const containerRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isReady, setIsReady] = useState(false);
+
+  const initWidget = useCallback(
+    async (container = containerRef.current) => {
+      if (!container) {
+        throw new Error("Container reference is required");
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Ensure scripts are loaded
+        if (!window.initSwapBridgeWidget) {
+          // Load CSS
+          const cssId = "swap-widget-css";
+          if (!document.getElementById(cssId)) {
+            const link = document.createElement("link");
+            link.id = cssId;
+            link.rel = "stylesheet";
+            link.href =
+              "https://autotestguru.github.io/SwapWidget/swap-bridge-widget.css";
+            document.head.appendChild(link);
+          }
+
+          // Load JS
+          await new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src =
+              "https://autotestguru.github.io/SwapWidget/swap-bridge-widget.js";
+            script.onload = resolve;
+            script.onerror = () =>
+              reject(new Error("Failed to load widget script"));
+            document.head.appendChild(script);
+          });
+        }
+
+        // Wait for function with retry
+        let attempts = 0;
+        while (!window.initSwapBridgeWidget && attempts < retryAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          attempts++;
+        }
+
+        if (!window.initSwapBridgeWidget) {
+          throw new Error(
+            `Widget function not available after ${retryAttempts} attempts`
+          );
+        }
+
+        // Initialize
+        window.initSwapBridgeWidget(container, { theme });
+        setIsReady(true);
+        setIsLoading(false);
+        onLoad();
+      } catch (err) {
+        setError(err.message);
+        setIsLoading(false);
+        onError(err);
+        throw err;
+      }
+    },
+    [theme, retryAttempts, retryDelay, onLoad, onError]
+  );
+
+  useEffect(() => {
+    if (autoInit && containerRef.current && !isReady) {
+      initWidget();
+    }
+  }, [autoInit, initWidget, isReady]);
+
+  return {
+    containerRef,
+    isLoading,
+    error,
+    isReady,
+    initWidget,
+    retry: () => initWidget(),
+  };
+};
+
+// Usage:
+const MySwapComponent = () => {
+  const { containerRef, isLoading, error, retry } = useSwapWidget({
+    theme: "light",
+    retryAttempts: 3,
+    onLoad: () => console.log("Widget ready!"),
+    onError: (err) => console.error("Widget error:", err),
+  });
+
+  if (error) {
+    return (
+      <div>
+        <p>Error: {error}</p>
+        <button onClick={retry}>Retry</button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {isLoading && <p>Loading widget...</p>}
+      <div ref={containerRef} />
+    </div>
+  );
+};
+```
+
+};
+
+export default SwapWidget;
+
+````
 
 ### **Method 2: Direct HTML Integration**
 
@@ -157,7 +404,7 @@ export default SwapWidget;
     </script>
   </body>
 </html>
-```
+````
 
 ### **Method 3: Vue.js Integration**
 
