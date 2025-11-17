@@ -6,7 +6,7 @@ Your website uses React 19, but the widget was originally built for React 18. Th
 
 ## Solution: Updated Widget Code for React 19
 
-### Option 1: Direct Integration (Recommended for React 19)
+### Option 1: Fixed Integration for React 19 (Recommended)
 
 ```jsx
 import React, { useRef, useEffect, useState } from "react";
@@ -19,15 +19,36 @@ const SwapWidget = () => {
   useEffect(() => {
     const loadWidget = async () => {
       try {
-        // Ensure React is available globally for the widget
+        // CRITICAL: Properly expose React globals for the widget
+        // The widget needs React to have specific internal properties
         if (!window.React) {
           window.React = React;
         }
+
+        // For React 19, we need to expose ReactDOM with the right structure
         if (!window.ReactDOM) {
-          // Import react-dom/client for React 19
-          const ReactDOMClient = await import("react-dom/client");
-          window.ReactDOM = ReactDOMClient;
+          try {
+            // Import the full react-dom module for React 19
+            const ReactDOM = await import("react-dom");
+            const ReactDOMClient = await import("react-dom/client");
+
+            // Create a combined ReactDOM object that includes both legacy and new APIs
+            window.ReactDOM = {
+              ...ReactDOM.default,
+              ...ReactDOMClient,
+              createRoot: ReactDOMClient.createRoot
+            };
+          } catch (e) {
+            console.error("Failed to load ReactDOM:", e);
+            throw new Error("Could not load ReactDOM properly");
+          }
         }
+
+        console.log("React globals set:", {
+          React: !!window.React,
+          ReactDOM: !!window.ReactDOM,
+          ReactVersion: React.version
+        });
 
         // Load widget CSS
         const cssId = "swap-widget-css";
@@ -50,6 +71,7 @@ const SwapWidget = () => {
             script.onerror = () => reject(new Error("Failed to load widget"));
             document.head.appendChild(script);
           });
+        }
         }
 
         // Wait for function availability
