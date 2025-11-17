@@ -9,5 +9,10 @@ function initSwapBridgeWidget(container, props = {}) {
   createRoot(container).render(<WidgetContainer {...props} />);
 }
 
+// Make function available globally for browser usage
+if (typeof window !== 'undefined') {
+  window.initSwapBridgeWidget = initSwapBridgeWidget;
+}
+
 // Default export for UMD builds
 export default initSwapBridgeWidget;
