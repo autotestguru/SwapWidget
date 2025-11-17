@@ -24,14 +24,14 @@ const SwapWidget = () => {
         if (!window.React) {
           window.React = React;
         }
-
+        
         // For React 19, we need to expose ReactDOM with the right structure
         if (!window.ReactDOM) {
           try {
             // Import the full react-dom module for React 19
             const ReactDOM = await import("react-dom");
             const ReactDOMClient = await import("react-dom/client");
-
+            
             // Create a combined ReactDOM object that includes both legacy and new APIs
             window.ReactDOM = {
               ...ReactDOM.default,

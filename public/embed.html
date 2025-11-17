@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwapBridge Widget</title>
+    
+    <!-- Widget CSS -->
+    <link rel="stylesheet" href="https://autotestguru.github.io/SwapWidget/swap-bridge-widget.css">
+    
+    <!-- React 18 from CDN (compatible with widget) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: transparent;
+            overflow: hidden;
+        }
+        
+        #swap-widget-container {
+            width: 100%;
+            min-height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-container {
+            padding: 20px;
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            background-color: #fef2f2;
+            color: #dc2626;
+            margin: 20px;
+            text-align: center;
+        }
+        
+        .retry-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+        
+        .retry-button:hover {
+            background: #2563eb;
+        }
+        
+        /* Make widget responsive */
+        @media (max-width: 480px) {
+            #swap-widget-container {
+                min-height: 450px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="swap-widget-container">
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <div>Loading SwapBridge Widget...</div>
+            <small style="color: #6b7280; margin-top: 8px;">Initializing secure trading interface</small>
+        </div>
+    </div>
+
+    <!-- Widget Script -->
+    <script src="https://autotestguru.github.io/SwapWidget/swap-bridge-widget.js"></script>
+    
+    <script>
+        // Configuration from URL parameters
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                theme: params.get('theme') || 'light',
+                width: params.get('width') || '100%',
+                height: params.get('height') || '500px'
+            };
+        }
+        
+        // Apply configuration
+        const config = getUrlParams();
+        document.body.style.background = config.theme === 'dark' ? '#1f2937' : 'transparent';
+        
+        // Initialize widget with retry logic
+        function initializeWidget() {
+            const container = document.getElementById('swap-widget-container');
+            
+            function showError(message) {
+                container.innerHTML = `
+                    <div class="error-container">
+                        <h3>⚠️ Widget Load Error</h3>
+                        <p>${message}</p>
+                        <button class="retry-button" onclick="location.reload()">
+                            Retry
+                        </button>
+                    </div>
+                `;
+            }
+            
+            function checkAndInit(attempts = 0) {
+                const maxAttempts = 10;
+                
+                if (typeof window.initSwapBridgeWidget === 'function') {
+                    try {
+                        // Clear loading state
+                        container.innerHTML = '';
+                        
+                        // Initialize widget
+                        window.initSwapBridgeWidget(container, {
+                            theme: config.theme
+                        });
+                        
+                        console.log('✅ SwapBridge Widget initialized successfully in iframe');
+                        
+                        // Post message to parent about successful load
+                        if (window.parent !== window) {
+                            window.parent.postMessage({
+                                type: 'SWAP_WIDGET_LOADED',
+                                success: true
+                            }, '*');
+                        }
+                        
+                    } catch (error) {
+                        console.error('❌ Widget initialization failed:', error);
+                        showError(`Initialization failed: ${error.message}`);
+                        
+                        // Post error to parent
+                        if (window.parent !== window) {
+                            window.parent.postMessage({
+                                type: 'SWAP_WIDGET_ERROR',
+                                error: error.message
+                            }, '*');
+                        }
+                    }
+                } else if (attempts < maxAttempts) {
+                    console.log(`🔄 Widget function not ready, retrying... (${attempts + 1}/${maxAttempts})`);
+                    setTimeout(() => checkAndInit(attempts + 1), 500);
+                } else {
+                    console.error('❌ Widget function not available after maximum attempts');
+                    showError('Widget failed to load after multiple attempts. Please refresh the page.');
+                    
+                    // Post error to parent
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'SWAP_WIDGET_ERROR',
+                            error: 'Widget function not available'
+                        }, '*');
+                    }
+                }
+            }
+            
+            // Check dependencies
+            if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+                showError('Required dependencies (React/ReactDOM) failed to load');
+                return;
+            }
+            
+            console.log('✅ React dependencies loaded successfully');
+            console.log('React version:', React.version);
+            
+            // Start initialization
+            checkAndInit();
+        }
+        
+        // Auto-resize iframe based on content
+        function setupAutoResize() {
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const height = entry.contentRect.height;
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'IFRAME_RESIZE',
+                            height: Math.max(height, 500)
+                        }, '*');
+                    }
+                }
+            });
+            
+            resizeObserver.observe(document.body);
+        }
+        
+        // Handle messages from parent
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'SWAP_WIDGET_CONFIG') {
+                // Handle dynamic config updates if needed
+                console.log('Received config from parent:', event.data.config);
+            }
+        });
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeWidget();
+                setupAutoResize();
+            });
+        } else {
+            initializeWidget();
+            setupAutoResize();
+        }
+        
+        // Post ready message to parent
+        window.addEventListener('load', function() {
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'IFRAME_READY'
+                }, '*');
+            }
+        });
+    </script>
+</body>
+</html>
