@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwapBridge Widget Test</title>
+    <link rel="stylesheet" href="https://autotestguru.github.io/SwapWidget/swap-bridge-widget.css">
+</head>
+<body>
+    <h1>SwapBridge Widget Test</h1>
+    <div id="swap-widget-container"></div>
+
+    <!-- React and ReactDOM from CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Widget Script -->
+    <script src="https://autotestguru.github.io/SwapWidget/swap-bridge-widget.js"></script>
+    
+    <script>
+        console.log('Page loaded, checking for widget function...');
+        console.log('window.initSwapBridgeWidget:', window.initSwapBridgeWidget);
+        
+        function checkAndInitWidget() {
+            if (window.initSwapBridgeWidget) {
+                console.log('Widget function found, initializing...');
+                try {
+                    window.initSwapBridgeWidget('swap-widget-container', {
+                        theme: 'light'
+                    });
+                    console.log('Widget initialization completed');
+                } catch (error) {
+                    console.error('Widget initialization failed:', error);
+                }
+            } else {
+                console.log('Widget function not found yet, retrying in 1 second...');
+                setTimeout(checkAndInitWidget, 1000);
+            }
+        }
+        
+        // Start checking after a small delay to ensure scripts are loaded
+        setTimeout(checkAndInitWidget, 100);
+    </script>
+</body>
+</html>

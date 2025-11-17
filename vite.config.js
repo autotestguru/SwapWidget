@@ -23,8 +23,6 @@ export default defineConfig({
           react: "React",
           "react-dom": "ReactDOM",
         },
-        // Ensure the global function is available
-        name: "initSwapBridgeWidget",
         assetFileNames: (assetInfo) => {
           if (assetInfo.name === "style.css") return "swap-bridge-widget.css";
           return assetInfo.name;
