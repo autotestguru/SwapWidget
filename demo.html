@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swap Bridge Widget Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: white;
+        }
+        .demo-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .demo-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .demo-section {
+            background: rgba(30, 41, 59, 0.3);
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .demo-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #60a5fa;
+        }
+        .widget-container {
+            background: transparent;
+        }
+        @media (max-width: 640px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+            .demo-container {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>🌉 Swap Bridge Widget Demo</h1>
+            <p>A responsive widget for swapping and bridging tokens between BNB Chain and BESC Hyperchain</p>
+        </div>
+        
+        <div class="demo-grid">
+            <div class="demo-section">
+                <div class="demo-title">📱 Mobile Responsive</div>
+                <p>Optimized for both desktop and mobile devices with Tailwind CSS</p>
+                <div id="widget-container-mobile" class="widget-container"></div>
+            </div>
+            
+            <div class="demo-section">
+                <div class="demo-title">🖥️ Desktop Optimized</div>
+                <p>Clean, compact design perfect for integration into any DApp</p>
+                <div id="widget-container-desktop" class="widget-container"></div>
+            </div>
+        </div>
+        
+        <div class="demo-section" style="margin-top: 20px;">
+            <div class="demo-title">✨ Features</div>
+            <ul style="list-style-type: none; padding: 0;">
+                <li>✅ Responsive design with Tailwind CSS</li>
+                <li>✅ Mobile and desktop optimized</li>
+                <li>✅ Modern gradient UI with glassmorphism effects</li>
+                <li>✅ Smooth animations and hover effects</li>
+                <li>✅ Accessible form inputs and buttons</li>
+                <li>✅ Clear status feedback and error handling</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- React and ReactDOM from CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Widget script -->
+    <script src="./dist/swap-bridge-widget.umd.js"></script>
+    
+    <script>
+        // Initialize widgets with different configurations
+        if (typeof window.SwapBridgeWidget === 'function') {
+            // Mobile widget
+            window.SwapBridgeWidget(document.getElementById('widget-container-mobile'), {
+                initialTab: 'swap',
+                rpcBsc: 'https://bsc-dataseed1.binance.org',
+                rpcHyperchain: 'https://rpc.beschyperchain.com/',
+                theme: {
+                    container: { 
+                        maxWidth: '100%',
+                        margin: '0 auto'
+                    }
+                }
+            });
+            
+            // Desktop widget  
+            window.SwapBridgeWidget(document.getElementById('widget-container-desktop'), {
+                initialTab: 'bridge',
+                rpcBsc: 'https://bsc-dataseed1.binance.org',
+                rpcHyperchain: 'https://rpc.beschyperchain.com/',
+                theme: {
+                    container: { 
+                        maxWidth: '400px',
+                        margin: '0 auto'
+                    }
+                }
+            });
+        } else if (window.SwapBridgeWidget && typeof window.SwapBridgeWidget.default === 'function') {
+            // Try .default export
+            window.SwapBridgeWidget.default(document.getElementById('widget-container-mobile'), {
+                initialTab: 'swap',
+                rpcBsc: 'https://bsc-dataseed1.binance.org',
+                rpcHyperchain: 'https://rpc.beschyperchain.com/',
+                theme: {
+                    container: { 
+                        maxWidth: '100%',
+                        margin: '0 auto'
+                    }
+                }
+            });
+            
+            window.SwapBridgeWidget.default(document.getElementById('widget-container-desktop'), {
+                initialTab: 'bridge',
+                rpcBsc: 'https://bsc-dataseed1.binance.org',
+                rpcHyperchain: 'https://rpc.beschyperchain.com/',
+                theme: {
+                    container: { 
+                        maxWidth: '400px',
+                        margin: '0 auto'
+                    }
+                }
+            });
+        } else {
+            console.error('SwapBridgeWidget not found. Available:', typeof window.SwapBridgeWidget, Object.keys(window.SwapBridgeWidget || {}));
+        }
+    </script>
+</body>
+</html>
